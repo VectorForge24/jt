@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+
+    <!--
+      Desktop-first viewport for phones.
+      The tracker UI is designed for desktop widths.
+      On mobile, the browser will render it at 1024px width
+      and let the user pinch-zoom, exactly like "Request Desktop Site".
+      On actual desktop, width=device-width gives normal behaviour.
+    -->
+    <meta name="viewport" content="width=1024" />
+
+    <title>JEE Tracker</title>
+
+    <!-- Google Sign-In script removed — Firebase handles auth now -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
