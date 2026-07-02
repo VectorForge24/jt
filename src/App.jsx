@@ -47,9 +47,22 @@ function LoadingScreen() {
   );
 }
 
+function ErrorScreen({ message, onRetry }) {
+  return (
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16, padding:28, background:'#0b1120', textAlign:'center' }}>
+      <div style={{ fontSize:32 }}>⚠️</div>
+      <h2 style={{ fontSize:16, fontWeight:700, color:'#f87171', margin:0 }}>Something went wrong</h2>
+      <p style={{ fontSize:13, color:'#94a3b8', maxWidth:280, lineHeight:1.6, margin:0 }}>{message}</p>
+      <button onClick={onRetry} style={{ padding:'11px 24px', borderRadius:14, background:'rgba(255,255,255,0.08)', color:'#fff', border:'1px solid rgba(255,255,255,0.12)', fontSize:13, fontWeight:700 }}>
+        Reload
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   const appState = useAppState();
-  const { isLoggedIn, uid, isSyncing, loginWithGoogle, logout, events, animQueue, consumeAnim, todayResult, rank } = appState;
+  const { isLoggedIn, uid, isSyncing, authError, loginWithGoogle, logout, events, animQueue, consumeAnim, todayResult, rank } = appState;
 
   const [ready, setReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -90,6 +103,7 @@ export default function App() {
     reader.readAsText(file);
   }, []);
 
+  if (authError && !isLoggedIn) return <ErrorScreen message={authError} onRetry={() => window.location.reload()}/>;
   if (!ready) return <LoadingScreen/>;
   if (!isLoggedIn) return <LoginScreen onLogin={loginWithGoogle}/>;
 

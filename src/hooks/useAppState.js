@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { buildRankingState, INITIAL_STATE, xpToRank } from '../engine/xpEngine.js';
 import { generateBots, buildLeaderboard, getPositionDelta } from '../engine/botEngine.js';
@@ -45,6 +45,7 @@ export function useAppState() {
   const [uid, setUid] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [authError, setAuthError] = useState(null);
   const hasPulled = useRef(false);
 
   // ── Tracker data (single source of truth, drives both tracker UI + ranking) ─
@@ -110,8 +111,12 @@ export function useAppState() {
   }, [events]);
 
   // ── Auth listener ─────────────────────────────────────────────────────────
+  // Every path through this callback is wrapped so a Firestore or network
+  // failure can NEVER leave the app stuck silently — it always lands on
+  // either "logged in" or "logged out", with authError set if something
+  // went wrong along the way.
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
         setIsLoggedIn(true);
         setUid(user.uid);
@@ -120,7 +125,12 @@ export function useAppState() {
 
         if (!hasPulled.current) {
           hasPulled.current = true;
-          await pullFromFirestore(user.uid);
+          // Fire-and-forget with its own catch — never let this hang the listener.
+          pullFromFirestore(user.uid).catch(e => {
+            console.error('Firestore pull failed:', e);
+            setAuthError('Could not load your data from the cloud. You can keep using the app — it will retry automatically.');
+            setIsSyncing(false);
+          });
         }
       } else {
         setIsLoggedIn(false);
@@ -128,7 +138,21 @@ export function useAppState() {
         setUserProfile(null);
         hasPulled.current = false;
       }
+    }, (error) => {
+      // onAuthStateChanged's own error callback — fires if Firebase Auth
+      // itself fails to initialize (bad config, network block, etc).
+      console.error('Auth listener error:', error);
+      setAuthError('Sign-in service failed to start: ' + error.message);
+      setIsLoggedIn(false);
     });
+
+    // Catch the result of a redirect-based sign-in (see loginWithGoogle below).
+    // This resolves once, right after Google redirects back to the app.
+    getRedirectResult(auth).catch(e => {
+      console.error('Redirect sign-in failed:', e);
+      setAuthError('Google sign-in failed: ' + e.message);
+    });
+
     return unsub;
   }, []);
 
@@ -180,11 +204,22 @@ export function useAppState() {
     }
   }, []);
 
+  // Redirect flow instead of popup: popups are silently blocked by many
+  // mobile browsers (third-party storage restrictions, in-app browsers,
+  // popup blockers) with no visible error — that was the root cause of
+  // the app hanging on the loading screen. Redirect works everywhere.
   const loginWithGoogle = useCallback(async () => {
+    setAuthError(null);
     const provider = new GoogleAuthProvider();
     provider.addScope('profile'); provider.addScope('email');
-    try { await signInWithPopup(auth, provider); }
-    catch (e) { if (e.code !== 'auth/popup-closed-by-user') alert('Sign-in failed: ' + e.message); }
+    try {
+      await signInWithRedirect(auth, provider);
+      // Page navigates away here; execution resumes via getRedirectResult
+      // in the useEffect above once Google redirects back.
+    } catch (e) {
+      console.error('Redirect start failed:', e);
+      setAuthError('Could not start sign-in: ' + e.message);
+    }
   }, []);
 
   const logout = useCallback(async () => { await signOut(auth); }, []);
@@ -196,7 +231,7 @@ export function useAppState() {
 
   return {
     // auth
-    isLoggedIn, uid, userProfile, isSyncing, loginWithGoogle, logout,
+    isLoggedIn, uid, userProfile, isSyncing, authError, loginWithGoogle, logout,
     // tracker data
     events, setEvents, chapters, setChapters, syllabus, setSyllabus,
     mocks, setMocks, materials, setMaterials,
