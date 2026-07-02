@@ -63,7 +63,8 @@ export const ACHIEVEMENTS = [
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 export function parseDayFromEvents(events, dateStr) {
-  const day = events.filter(e => !e.allDay && e.start?.startsWith(dateStr));
+  const safeEvents = Array.isArray(events) ? events : [];
+  const day = safeEvents.filter(e => !e.allDay && e.start?.startsWith(dateStr));
   let totalHrs = 0, doneHrs = 0, doneCount = 0;
   const subjects = new Set();
   for (const e of day) {
@@ -210,9 +211,14 @@ export const INITIAL_STATE = { totalXP:0, rankIdx:0, subXP:0, rank:RANKS[0], ach
  * mid-day and always reflects live progress.
  */
 export function buildRankingState(events, savedState) {
+  // Defensive default: this function is the actual crash site from the
+  // "Cannot read properties of null" error. The root cause (safeJSON
+  // returning null) is fixed at the source, but guarding here too means
+  // this function can never crash regardless of what calls into it.
+  const safeEvents = Array.isArray(events) ? events : [];
   const today = new Date().toISOString().slice(0,10);
   const allDates = [...new Set(
-    events.filter(e => !e.allDay && e.start).map(e => e.start.slice(0,10))
+    safeEvents.filter(e => !e.allDay && e.start).map(e => e.start.slice(0,10))
   )].sort();
 
   let baseState = savedState
@@ -228,7 +234,7 @@ export function buildRankingState(events, savedState) {
   const animEvents = [];
 
   for (const date of datesToRun) {
-    const stats = parseDayFromEvents(events, date);
+    const stats = parseDayFromEvents(safeEvents, date);
     if (!stats.hasData) continue;
     const isFinalised = date !== today;
     const result = processDay(stats, currentState, currentState.history||[], date, isFinalised);

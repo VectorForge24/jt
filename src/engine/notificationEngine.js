@@ -114,12 +114,13 @@ const scheduledTimers = new Map(); // taskId -> timeoutId, so we can clear stale
  */
 export function scheduleTaskNotifications(events) {
   if (Notification.permission !== 'granted') return;
+  const safeEvents = Array.isArray(events) ? events : [];
 
   const now = Date.now();
   const notified = getNotifiedSet();
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  const todaysTasks = events.filter(e => {
+  const todaysTasks = safeEvents.filter(e => {
     if (e.allDay) return false;
     const startDate = e.start?.split('T')[0];
     return startDate === todayStr;

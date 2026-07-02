@@ -29,7 +29,19 @@ const TRACKER_KEYS = ['tracker-events','tracker-chapters','tracker-syllabus','tr
 function isEmptyValue(v) { if (!v) return true; const s=String(v).trim(); return s===''||s==='[]'||s==='{}'||s==='null'||s==='undefined'; }
 function localDataCount() { return TRACKER_KEYS.filter(k => !isEmptyValue(localStorage.getItem(k))).length; }
 function countMeaningfulKeys(data) { return Object.entries(data).filter(([k,v]) => TRACKER_KEYS.includes(k) && !isEmptyValue(v)).length; }
-function safeJSON(s, fb) { try { return JSON.parse(s); } catch { return fb; } }
+function safeJSON(s, fb) {
+  // JSON.parse(null) and JSON.parse('null') both SUCCEED and return the
+  // value null — they do not throw. A plain try/catch here was letting
+  // that null through as if it were valid parsed data, which is exactly
+  // what produced "Cannot read properties of null (reading 'filter')"
+  // on first load, before any real tracker-events had ever been saved.
+  try {
+    const parsed = JSON.parse(s);
+    return parsed === null || parsed === undefined ? fb : parsed;
+  } catch {
+    return fb;
+  }
+}
 
 async function pushTrackerToFirestore(uid) {
   const data = {};
