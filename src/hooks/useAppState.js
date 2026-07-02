@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { buildRankingState, INITIAL_STATE, xpToRank } from '../engine/xpEngine.js';
 import { generateBots, buildLeaderboard, getPositionDelta } from '../engine/botEngine.js';
@@ -158,13 +158,6 @@ export function useAppState() {
       setIsLoggedIn(false);
     });
 
-    // Catch the result of a redirect-based sign-in (see loginWithGoogle below).
-    // This resolves once, right after Google redirects back to the app.
-    getRedirectResult(auth).catch(e => {
-      console.error('Redirect sign-in failed:', e);
-      setAuthError('Google sign-in failed: ' + e.message);
-    });
-
     return unsub;
   }, []);
 
@@ -216,21 +209,35 @@ export function useAppState() {
     }
   }, []);
 
-  // Redirect flow instead of popup: popups are silently blocked by many
-  // mobile browsers (third-party storage restrictions, in-app browsers,
-  // popup blockers) with no visible error — that was the root cause of
-  // the app hanging on the loading screen. Redirect works everywhere.
+  // Popup flow, not redirect: as of June 2024, signInWithRedirect requires
+  // an additional self-hosted proxy setup (documented at
+  // firebase.google.com/docs/auth/web/redirect-best-practices) to work
+  // reliably on Chrome 115+, Firefox 109+, and Safari 16.1+ — without it,
+  // these browsers silently block the third-party storage redirect relies
+  // on, getRedirectResult() returns null with no error, and the app
+  // falls straight back to the login screen. That's what was happening.
+  // Popup avoids this entirely and is Firebase's own current recommendation
+  // unless that proxy is set up. The one real downside — some mobile
+  // browsers/in-app browsers block popups outright — is now handled
+  // explicitly below instead of failing silently.
   const loginWithGoogle = useCallback(async () => {
     setAuthError(null);
     const provider = new GoogleAuthProvider();
     provider.addScope('profile'); provider.addScope('email');
     try {
-      await signInWithRedirect(auth, provider);
-      // Page navigates away here; execution resumes via getRedirectResult
-      // in the useEffect above once Google redirects back.
+      await signInWithPopup(auth, provider);
+      // onAuthStateChanged fires automatically on success — no further action needed here.
     } catch (e) {
-      console.error('Redirect start failed:', e);
-      setAuthError('Could not start sign-in: ' + e.message);
+      console.error('Popup sign-in failed:', e);
+      if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
+        // User closed it themselves — not an error worth showing.
+        return;
+      }
+      if (e.code === 'auth/popup-blocked') {
+        setAuthError('Your browser blocked the sign-in popup. Please allow popups for this site and try again.');
+        return;
+      }
+      setAuthError('Sign-in failed: ' + e.message);
     }
   }, []);
 
