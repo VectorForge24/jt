@@ -55,10 +55,13 @@ function ProfileTab({ rank, subXP, rankingState, todayResult, username, setUsern
           <RankBadge rank={rank} size="lg" animate/>
           <div style={{ flex:1, minWidth:0 }}>
             {editing ? (
-              <div style={{ display:'flex', gap:6 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6, minWidth:0 }}>
                 <input value={draft} onChange={e => setDraft(e.target.value)} maxLength={20} autoFocus
-                  style={{ flex:1, background:'transparent', border:'none', borderBottom:`2px solid ${rank.color}`, color:'#fff', fontSize:18, fontWeight:700, outline:'none' }}/>
-                <button onClick={() => { setUsername(draft.trim()); setEditing(false); }} style={{ fontSize:11, fontWeight:700, color:rank.color, background:'none', border:'none' }}>Save</button>
+                  style={{ flex:'1 1 auto', minWidth:0, width:0, background:'transparent', border:'none', borderBottom:`2px solid ${rank.color}`, color:'#fff', fontSize:16, fontWeight:700, outline:'none', padding:0 }}/>
+                <button onClick={() => { setUsername(draft.trim()); setEditing(false); }}
+                  style={{ flexShrink:0, fontSize:11, fontWeight:700, color:'#000', background:rank.color, border:'none', borderRadius:8, padding:'6px 12px', whiteSpace:'nowrap' }}>
+                  Save
+                </button>
               </div>
             ) : (
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>

@@ -29,7 +29,8 @@ function compressImage(file) {
 
 export default function SettingsSheet({
   isOpen, onClose, activeTheme, setActiveTheme, bgImage, setBgImage,
-  bgDimness, setBgDimness, isLoggedIn, isSyncing, onLogin, onLogout,
+  bgDimness, setBgDimness, glassOpacity, setGlassOpacity,
+  isLoggedIn, isSyncing, onLogin, onLogout,
   onExport, onImport, notifPermission, onRequestNotif,
 }) {
   const fileRef = useRef();
@@ -70,6 +71,12 @@ export default function SettingsSheet({
       <Section label="Background Dimness">
         <input type="range" min="0" max="90" step="5" value={bgDimness} onChange={e => setBgDimness(Number(e.target.value))}
           style={{ width:'100%', accentColor:currentHex }}/>
+      </Section>
+
+      <Section label="Glass Opacity">
+        <input type="range" min="20" max="90" step="5" value={glassOpacity} onChange={e => setGlassOpacity(Number(e.target.value))}
+          style={{ width:'100%', accentColor:currentHex }}/>
+        <p style={{ fontSize:11, color:'#64748b', marginTop:6 }}>Controls how see-through cards, the header, and icon buttons are.</p>
       </Section>
 
       <Section label="Wallpaper">

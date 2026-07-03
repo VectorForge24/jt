@@ -33,17 +33,26 @@ body {
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* ── Glass card ───────────────────────────────────────────────────────────── */
+/* ── Glass opacity (Fix #2: controllable from Settings) ──────────────────── */
+/* --glass-opacity is set inline on :root by App.jsx from the Settings slider.
+   Every glass-styled surface (cards, header, buttons) derives from this one
+   value so a single slider controls translucency across the whole app. */
+:root {
+  --glass-opacity: 0.55;
+}
 .glass-card {
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(15, 23, 42, var(--glass-opacity));
   backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
   border: 1px solid rgba(255,255,255,0.06);
 }
 .light .glass-card {
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, calc(var(--glass-opacity) + 0.05));
   border: 1px solid rgba(0,0,0,0.06);
 }
+/* Used by Header + icon buttons — a lighter/stronger pairing derived from the same slider */
+.glass-bg-var        { background: rgba(255,255,255, calc(var(--glass-opacity) * 0.12)); }
+.glass-bg-strong-var  { background: rgba(11,17,32, calc(var(--glass-opacity) * 1.5)); }
 
 /* ── Touch targets ────────────────────────────────────────────────────────── */
 button, a, input, select { min-height: 36px; }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, BrainCircuit, Timer as TimerIcon, Clock } from 'lucide-react';
 
 const fmt = (s, showHrs=false) => {
@@ -7,49 +7,19 @@ const fmt = (s, showHrs=false) => {
   return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 };
 
-export default function TimerPage({ appState }) {
-  const [mode, setMode] = useState('Pomodoro');
-  const [pomoType, setPomoType] = useState('Focus');
-  const [timeLeft, setTimeLeft] = useState(1500);
-  const [totalTime, setTotalTime] = useState(1500);
-  const [isRunning, setIsRunning] = useState(false);
-  const [inH, setInH] = useState(0), [inM, setInM] = useState(30), [inS, setInS] = useState(0);
+// TimerPage no longer owns any timer state — it's all lifted into
+// useGlobalTimer() at the App.jsx level so the timer survives page
+// navigation. This page just reads and controls that shared instance.
+export default function TimerPage({ timer }) {
+  const { mode, pomoType, timeLeft, totalTime, isRunning, countdownInput, isDone, progress,
+    changeMode, changePomoType, changeCountdownInput, toggle, reset } = timer;
 
-  useEffect(() => {
-    let interval;
-    if (isRunning) {
-      interval = setInterval(() => {
-        setTimeLeft(prev => {
-          if (mode==='Stopwatch') return prev+1;
-          if (prev<=1) { setIsRunning(false); return 0; }
-          return prev-1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isRunning, mode]);
-
-  const changeMode = m => {
-    if (mode===m) return; setIsRunning(false); setMode(m);
-    if (m==='Pomodoro') { const t = pomoType==='Focus'?1500:pomoType==='Short'?300:900; setTimeLeft(t); setTotalTime(t); }
-    else if (m==='Stopwatch') { setTimeLeft(0); setTotalTime(0); }
-    else { const t = inH*3600+inM*60+inS; setTimeLeft(t); setTotalTime(t); }
-  };
-  const changePomo = t => { if (pomoType===t) return; setIsRunning(false); setPomoType(t); const nt=t==='Focus'?1500:t==='Short'?300:900; setTimeLeft(nt); setTotalTime(nt); };
-  const changeCountdown = (h,m,s) => { setInH(h); setInM(m); setInS(s); if (mode==='Countdown'&&!isRunning) { const nt=h*3600+m*60+s; setTimeLeft(nt); setTotalTime(nt); } };
-  const toggle = () => { if (mode==='Countdown'&&timeLeft===0) return; setIsRunning(!isRunning); };
-  const reset = () => { setIsRunning(false); if (mode==='Pomodoro') setTimeLeft(pomoType==='Focus'?1500:pomoType==='Short'?300:900); else if (mode==='Stopwatch') setTimeLeft(0); else setTimeLeft(totalTime); };
-
-  const isDone = timeLeft===0 && !isRunning && totalTime>0 && mode!=='Stopwatch';
   const showPicker = mode==='Countdown' && !isRunning && timeLeft===totalTime && !isDone;
-  const progress = mode==='Stopwatch' ? 0 : totalTime ? ((totalTime-timeLeft)/totalTime)*100 : 0;
-
   const ringR = 130, ringCirc = 2*Math.PI*ringR;
 
   return (
     <div style={{ paddingBottom:90, display:'flex', flexDirection:'column', alignItems:'center', padding:'20px 16px 90px' }}>
 
-      {/* Mode switcher */}
       <div style={{ display:'flex', gap:4, marginBottom:20, background:'rgba(255,255,255,0.04)', borderRadius:99, padding:4, width:'100%', maxWidth:320 }}>
         {[['Pomodoro',BrainCircuit],['Stopwatch',TimerIcon],['Countdown',Clock]].map(([m,Icon]) => (
           <button key={m} onClick={() => changeMode(m)}
@@ -63,7 +33,7 @@ export default function TimerPage({ appState }) {
       {mode==='Pomodoro' && (
         <div style={{ display:'flex', gap:8, marginBottom:24, flexWrap:'wrap', justifyContent:'center' }}>
           {['Focus','Short','Long'].map(t => (
-            <button key={t} onClick={() => changePomo(t)}
+            <button key={t} onClick={() => changePomoType(t)}
               style={{ padding:'8px 16px', borderRadius:99, fontSize:12, fontWeight:700,
                 background: pomoType===t ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)',
                 border: `1px solid ${pomoType===t?'#3b82f6':'rgba(255,255,255,0.06)'}`,
@@ -74,7 +44,6 @@ export default function TimerPage({ appState }) {
         </div>
       )}
 
-      {/* Main timer display */}
       <div style={{ position:'relative', width:280, height:280, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:32 }}>
         {!showPicker && mode!=='Stopwatch' && (
           <svg width="280" height="280" style={{ position:'absolute', transform:'rotate(-90deg)' }}>
@@ -87,11 +56,11 @@ export default function TimerPage({ appState }) {
 
         {showPicker ? (
           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-            <ScrollPicker max={5} value={inH} onChange={v => changeCountdown(v,inM,inS)} label="H"/>
+            <ScrollPicker max={5} value={countdownInput.h} onChange={v => changeCountdownInput(v,countdownInput.m,countdownInput.s)} label="H"/>
             <span style={{ fontSize:20, color:'#475569' }}>:</span>
-            <ScrollPicker max={59} value={inM} onChange={v => changeCountdown(inH,v,inS)} label="M"/>
+            <ScrollPicker max={59} value={countdownInput.m} onChange={v => changeCountdownInput(countdownInput.h,v,countdownInput.s)} label="M"/>
             <span style={{ fontSize:20, color:'#475569' }}>:</span>
-            <ScrollPicker max={59} value={inS} onChange={v => changeCountdown(inH,inM,v)} label="S"/>
+            <ScrollPicker max={59} value={countdownInput.s} onChange={v => changeCountdownInput(countdownInput.h,countdownInput.m,v)} label="S"/>
           </div>
         ) : (
           <div style={{ fontSize:56, fontWeight:800, color: isDone?'#ef4444':'#f1f5f9', fontVariantNumeric:'tabular-nums', letterSpacing:'-0.02em' }}>
@@ -104,7 +73,6 @@ export default function TimerPage({ appState }) {
         {mode==='Stopwatch' ? 'Elapsed' : isDone ? "Time's up!" : isRunning ? 'Focusing…' : 'Ready'}
       </p>
 
-      {/* Controls */}
       <div style={{ display:'flex', alignItems:'center', gap:24 }}>
         <button onClick={reset} style={{ width:48, height:48, borderRadius:'50%', background:'rgba(255,255,255,0.06)', border:'none', display:'flex', alignItems:'center', justifyContent:'center' }}>
           <RotateCcw size={18} color="#94a3b8"/>

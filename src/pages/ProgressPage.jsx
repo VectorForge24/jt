@@ -8,16 +8,24 @@ const fmtHrs = d => { const h=Math.floor(Math.round(d*60)/60), m=Math.round(d*60
 export default function ProgressPage({ appState }) {
   const { events, mocks } = appState;
   const [renderDate, setRenderDate] = useState(new Date());
-  const [viewType, setViewType] = useState('Weekly');
+  const [viewType, setViewType] = useState('Weekly'); // Fix #6: Daily | Weekly | Monthly
 
   const mk = `${renderDate.getFullYear()}-${String(renderDate.getMonth()+1).padStart(2,'0')}`;
+  const dayStr = `${renderDate.getFullYear()}-${String(renderDate.getMonth()+1).padStart(2,'0')}-${String(renderDate.getDate()).padStart(2,'0')}`;
 
   const { chartData, stats, days } = useMemo(() => {
     const raw = events.filter(e => e.extendedProps?.done ?? e.done);
     const now = renderDate;
     let data = [], st = { total:0, physics:0, chemistry:0, math:0 }, days;
 
-    if (viewType === 'Weekly') {
+    if (viewType === 'Daily') {
+      // Hour-by-hour buckets across the visible day (5am–midnight, matching
+      // the original tracker's daily timeline window).
+      days = 1;
+      for (let h = 5; h <= 23; h++) {
+        data.push({ name: h===12?'12pm':h>12?`${h-12}pm`:`${h}am`, hourBucket:h, hours:0, Physics:0, Chemistry:0, Mathematics:0 });
+      }
+    } else if (viewType === 'Weekly') {
       days = 7;
       const sot = new Date(now); sot.setDate(now.getDate() - now.getDay());
       for (let i=0;i<7;i++) {
@@ -34,24 +42,42 @@ export default function ProgressPage({ appState }) {
       }
     }
 
-    raw.forEach(e => {
-      if (!e.start) return;
-      const s = new Date(e.start);
-      const subj = e.extendedProps?.subject || e.subject || 'Physics';
-      const dur = (new Date(e.end||e.start) - s) / 3600000;
-      data.forEach(d => {
-        if (d.dateObj && d.dateObj.toDateString()===s.toDateString() && d.hours!==null) {
-          d.hours += dur; d[subj] = (d[subj]||0) + dur;
-          st.total += dur; st[subj.toLowerCase().replace('mathematics','math')] += dur;
-        }
+    if (viewType === 'Daily') {
+      raw.forEach(e => {
+        if (!e.start) return;
+        const s = new Date(e.start);
+        const sDay = `${s.getFullYear()}-${String(s.getMonth()+1).padStart(2,'0')}-${String(s.getDate()).padStart(2,'0')}`;
+        if (sDay !== dayStr) return;
+        const subj = e.extendedProps?.subject || e.subject || 'Physics';
+        const dur = (new Date(e.end||e.start) - s) / 3600000;
+        const hourBucket = s.getHours();
+        data.forEach(d => {
+          if (d.hourBucket === hourBucket) {
+            d.hours += dur; d[subj] = (d[subj]||0) + dur;
+            st.total += dur; st[subj.toLowerCase().replace('mathematics','math')] += dur;
+          }
+        });
       });
-    });
+    } else {
+      raw.forEach(e => {
+        if (!e.start) return;
+        const s = new Date(e.start);
+        const subj = e.extendedProps?.subject || e.subject || 'Physics';
+        const dur = (new Date(e.end||e.start) - s) / 3600000;
+        data.forEach(d => {
+          if (d.dateObj && d.dateObj.toDateString()===s.toDateString() && d.hours!==null) {
+            d.hours += dur; d[subj] = (d[subj]||0) + dur;
+            st.total += dur; st[subj.toLowerCase().replace('mathematics','math')] += dur;
+          }
+        });
+      });
+    }
     data.forEach(d => { if (d.hours!==null) d.hours = Math.round(d.hours*10)/10; });
 
     return { chartData:data, stats:st, days };
-  }, [events, viewType, renderDate]);
+  }, [events, viewType, renderDate, dayStr]);
 
-  const maxY = viewType==='Weekly' ? 17 : 17;
+  const maxY = viewType==='Daily' ? 6 : 17;
   const pieData = [
     { name:'Physics', value:stats.physics }, { name:'Chemistry', value:stats.chemistry }, { name:'Mathematics', value:stats.math },
   ].filter(d => d.value > 0);
@@ -74,8 +100,8 @@ export default function ProgressPage({ appState }) {
     <div style={{ paddingBottom:90, padding:'12px 16px 90px' }}>
 
       {/* View switcher */}
-      <div style={{ display:'flex', gap:6, marginBottom:14 }}>
-        {['Weekly','Monthly'].map(v => (
+      <div style={{ display:'flex', gap:6, marginBottom:10 }}>
+        {['Daily','Weekly','Monthly'].map(v => (
           <button key={v} onClick={() => setViewType(v)}
             style={{ flex:1, padding:'9px 0', borderRadius:12, fontSize:12, fontWeight:700,
               background: viewType===v ? '#3b82f6' : 'rgba(255,255,255,0.04)', color: viewType===v ? '#fff' : '#64748b', border:'none' }}>
@@ -84,18 +110,53 @@ export default function ProgressPage({ appState }) {
         ))}
       </div>
 
+      {/* Date navigation — step size matches the active view */}
+      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+        <button onClick={() => {
+          const d = new Date(renderDate);
+          if (viewType==='Daily') d.setDate(d.getDate()-1);
+          else if (viewType==='Weekly') d.setDate(d.getDate()-7);
+          else d.setMonth(d.getMonth()-1);
+          setRenderDate(d);
+        }} style={{ padding:8, borderRadius:12, background:'rgba(255,255,255,0.04)', border:'none' }}>
+          <ChevronLeft size={16} color="#94a3b8"/>
+        </button>
+        <span style={{ flex:1, textAlign:'center', fontSize:12.5, fontWeight:700, color:'#e2e8f0' }}>
+          {viewType==='Daily'
+            ? renderDate.toLocaleDateString('en-US',{ weekday:'short', month:'short', day:'numeric' })
+            : viewType==='Weekly'
+              ? `Week of ${renderDate.toLocaleDateString('en-US',{ month:'short', day:'numeric' })}`
+              : renderDate.toLocaleDateString('en-US',{ month:'long', year:'numeric' })}
+        </span>
+        <button onClick={() => {
+          const d = new Date(renderDate);
+          if (viewType==='Daily') d.setDate(d.getDate()+1);
+          else if (viewType==='Weekly') d.setDate(d.getDate()+7);
+          else d.setMonth(d.getMonth()+1);
+          setRenderDate(d);
+        }} style={{ padding:8, borderRadius:12, background:'rgba(255,255,255,0.04)', border:'none' }}>
+          <ChevronRight size={16} color="#94a3b8"/>
+        </button>
+      </div>
+
       {/* Total grind */}
       <div style={{ borderRadius:18, padding:'16px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)', marginBottom:12 }}>
-        <p style={{ fontSize:10, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.06em', margin:'0 0 4px' }}>Total Grind</p>
+        <p style={{ fontSize:10, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.06em', margin:'0 0 4px' }}>
+          {viewType==='Daily' ? "Today's Grind" : 'Total Grind'}
+        </p>
         <p style={{ fontSize:26, fontWeight:800, color:'#f1f5f9', margin:'0 0 8px' }}>{fmtHrs(stats.total)}</p>
-        <span style={{ fontSize:11, fontWeight:700, color:'#64748b', background:'rgba(255,255,255,0.04)', padding:'3px 10px', borderRadius:99 }}>
-          Avg {Math.round((stats.total/days)*10)/10}h/day
-        </span>
+        {viewType !== 'Daily' && (
+          <span style={{ fontSize:11, fontWeight:700, color:'#64748b', background:'rgba(255,255,255,0.04)', padding:'3px 10px', borderRadius:99 }}>
+            Avg {Math.round((stats.total/days)*10)/10}h/day
+          </span>
+        )}
       </div>
 
       {/* Timeline chart */}
       <div style={{ borderRadius:18, padding:'16px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)', marginBottom:12, height:220 }}>
-        <p style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.06em', margin:'0 0 12px' }}>Timeline</p>
+        <p style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.06em', margin:'0 0 12px' }}>
+          {viewType==='Daily' ? 'Hourly Timeline' : 'Timeline'}
+        </p>
         <ResponsiveContainer width="100%" height="85%">
           <LineChart data={chartData} margin={{ top:5, right:5, left:-24, bottom:0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2}/>

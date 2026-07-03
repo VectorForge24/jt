@@ -217,6 +217,26 @@ export function buildRankingState(events, savedState) {
   // this function can never crash regardless of what calls into it.
   const safeEvents = Array.isArray(events) ? events : [];
   const today = new Date().toISOString().slice(0,10);
+  const currentMonthKey = today.slice(0,7); // "YYYY-MM"
+
+  // ── Monthly rank reset ──────────────────────────────────────────────────
+  // Ranking is a per-month competition (the leaderboard/bot seed already
+  // resets each month). If the saved state's most recent activity was in
+  // a PRIOR month, start this month's rank fresh at Bronze III/0 XP, but
+  // keep lifetime achievements and the full history log intact for the
+  // profile view — only totalXP/rankIdx/subXP/rank reset, not everything.
+  if (savedState && savedState.history?.length) {
+    const lastEntryMonth = savedState.history[savedState.history.length - 1].date?.slice(0,7);
+    if (lastEntryMonth && lastEntryMonth !== currentMonthKey) {
+      savedState = {
+        ...INITIAL_STATE,
+        achievements: savedState.achievements || [], // lifetime achievements carry over
+        history: savedState.history,                  // keep the log for past-month stats
+        _monthResetAt: today,
+      };
+    }
+  }
+
   const allDates = [...new Set(
     safeEvents.filter(e => !e.allDay && e.start).map(e => e.start.slice(0,10))
   )].sort();
@@ -226,7 +246,10 @@ export function buildRankingState(events, savedState) {
     : INITIAL_STATE;
 
   const processedDates = new Set(baseState.history.map(h => h.date));
-  const pastDates  = allDates.filter(d => d < today && !processedDates.has(d));
+  // Only reprocess PAST DATES WITHIN THE CURRENT MONTH — a prior month's
+  // days are already reflected in history and must not re-contribute XP
+  // to this month's fresh rank after a reset.
+  const pastDates  = allDates.filter(d => d < today && d.slice(0,7) === currentMonthKey && !processedDates.has(d));
   const datesToRun = [...pastDates, ...(allDates.includes(today) ? [today] : [])];
 
   let currentState = baseState;

@@ -248,6 +248,14 @@ export function useAppState() {
   const { rank, subXP } = xpToRank(rankingState.totalXP);
   const userPosition = leaderboard.find(e => e.id==='real_user')?.position || null;
 
+  // Manual sync button in the header — pulls fresh cloud data down.
+  // Reuses the exact same pullFromFirestore logic as the auto-sync-on-login
+  // path, just triggered on demand instead of only once per session.
+  const manualSync = useCallback(async () => {
+    if (!auth.currentUser) return;
+    await pullFromFirestore(auth.currentUser.uid);
+  }, []);
+
   return {
     // auth
     isLoggedIn, uid, userProfile, isSyncing, authError, loginWithGoogle, logout,
@@ -257,5 +265,6 @@ export function useAppState() {
     // ranking
     rankingState, rank, subXP, todayResult, username, setUsername,
     leaderboard, positionDeltas, userPosition, animQueue, consumeAnim,
+    manualSync,
   };
 }

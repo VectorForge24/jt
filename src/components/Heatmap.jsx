@@ -44,14 +44,19 @@ export default function Heatmap({ events, weeks = 12, onDayTap, rankColor = '#3b
   const LABELS = ['M','','W','','F','','S'];
   const C = 13, G = 3;
 
+  const LEGEND = [
+    { c:'#10b981', label:'Elite (90%+)' },
+    { c:'#34d399', label:'Great (75-89%)' },
+    { c:'#60a5fa', label:'Solid (55-74%)' },
+    { c:'#f59e0b', label:'Weak (35-54%)' },
+    { c:'#f97316', label:'Poor (15-34%)' },
+    { c:'#f43f5e', label:'Penalty (<15%)' },
+  ];
+
   return (
     <div>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+      <div style={{ marginBottom:8 }}>
         <span style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.06em' }}>Activity</span>
-        <div style={{ display:'flex', gap:8, fontSize:9, color:'#64748b' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:3 }}><span style={{width:8,height:8,borderRadius:2,background:'#10b981',display:'inline-block'}}/>Elite</div>
-          <div style={{ display:'flex', alignItems:'center', gap:3 }}><span style={{width:8,height:8,borderRadius:2,background:'#f43f5e',display:'inline-block'}}/>Low</div>
-        </div>
       </div>
       <div style={{ overflowX:'auto', WebkitOverflowScrolling:'touch' }} className="hide-scrollbar">
         <div style={{ display:'flex', gap:G, width:'max-content' }}>
@@ -75,6 +80,15 @@ export default function Heatmap({ events, weeks = 12, onDayTap, rankColor = '#3b
             </div>
           ))}
         </div>
+      </div>
+      {/* Full legend — every tier cellColor() actually produces, labeled */}
+      <div style={{ display:'flex', flexWrap:'wrap', gap:'6px 12px', marginTop:10 }}>
+        {LEGEND.map(({ c, label }) => (
+          <div key={label} style={{ display:'flex', alignItems:'center', gap:4 }}>
+            <span style={{ width:8, height:8, borderRadius:2, background:c, display:'inline-block', flexShrink:0 }}/>
+            <span style={{ fontSize:9, color:'#64748b' }}>{label}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { useAppState } from './hooks/useAppState.js';
 import { useTaskNotifications } from './hooks/useTaskNotifications.js';
+import { useGlobalTimer } from './hooks/useGlobalTimer.js';
 
 import Header from './components/Header.jsx';
 import BottomNav from './components/BottomNav.jsx';
 import SettingsSheet, { THEMES } from './components/SettingsSheet.jsx';
 import RankAnimation, { BonusToast } from './components/RankAnimation.jsx';
+import DynamicIsland from './components/DynamicIsland.jsx';
 
 import HomePage from './pages/HomePage.jsx';
 import SyllabusPage from './pages/SyllabusPage.jsx';
@@ -16,7 +18,6 @@ import ProgressPage from './pages/ProgressPage.jsx';
 import TimerPage from './pages/TimerPage.jsx';
 import RankingPage from './pages/RankingPage.jsx';
 
-const PAGE_TITLES = { '/':'Today', '/syllabus':'Syllabus', '/progress':'Progress', '/timer':'Timer', '/ranking':'Ranking' };
 
 function LoginScreen({ onLogin }) {
   return (
@@ -62,13 +63,19 @@ function ErrorScreen({ message, onRetry }) {
 
 export default function App() {
   const appState = useAppState();
-  const { isLoggedIn, uid, isSyncing, authError, loginWithGoogle, logout, events, animQueue, consumeAnim, todayResult, rank } = appState;
+  const {
+    isLoggedIn, uid, isSyncing, authError, loginWithGoogle, logout, events,
+    animQueue, consumeAnim, todayResult, rank, username, userPosition, manualSync,
+  } = appState;
+
+  const timer = useGlobalTimer(); // Fix #7: lifted above the router so it survives page navigation
 
   const [ready, setReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeTheme, setActiveTheme] = useState(() => localStorage.getItem('tracker-color') || 'blue');
   const [bgImage, setBgImage] = useState(() => localStorage.getItem('tracker-bg') || null);
   const [bgDimness, setBgDimness] = useState(() => Number(localStorage.getItem('tracker-bg-dimness') ?? 30));
+  const [glassOpacity, setGlassOpacity] = useState(() => Number(localStorage.getItem('tracker-glass-opacity') ?? 55)); // Fix #2
 
   const { permission: notifPermission, requestPermission: requestNotifPermission } = useTaskNotifications(events);
 
@@ -76,6 +83,13 @@ export default function App() {
   useEffect(() => { localStorage.setItem('tracker-color', activeTheme); }, [activeTheme]);
   useEffect(() => { if (bgImage) localStorage.setItem('tracker-bg', bgImage); else localStorage.removeItem('tracker-bg'); }, [bgImage]);
   useEffect(() => { localStorage.setItem('tracker-bg-dimness', String(bgDimness)); }, [bgDimness]);
+  useEffect(() => {
+    document.documentElement.style.setProperty('--glass-opacity', String(glassOpacity/100));
+  }, []); // apply saved value immediately on first mount
+  useEffect(() => {
+    localStorage.setItem('tracker-glass-opacity', String(glassOpacity));
+    document.documentElement.style.setProperty('--glass-opacity', String(glassOpacity/100));
+  }, [glassOpacity]);
   useEffect(() => { document.documentElement.classList.add('dark'); }, []);
 
   const currentHex = THEMES.find(t => t.id===activeTheme)?.hex || '#3b82f6';
@@ -118,7 +132,9 @@ export default function App() {
 
         <div style={{ position:'relative', zIndex:1 }}>
           <RouteAwareHeader isLoggedIn={isLoggedIn} isSyncing={isSyncing} onSettingsClick={() => setSettingsOpen(true)}
-            themeHex={currentHex} notifPermission={notifPermission} onNotifClick={requestNotifPermission}/>
+            themeHex={currentHex} notifPermission={notifPermission} onNotifClick={requestNotifPermission}
+            rank={rank} username={username} userPosition={userPosition} onManualSync={manualSync}
+            timer={timer}/>
 
           <RankAnimation animQueue={animQueue} consumeAnim={consumeAnim}/>
           <AnimatePresence>
@@ -130,7 +146,7 @@ export default function App() {
               <Route path="/"          element={<HomePage appState={appState}/>}/>
               <Route path="/syllabus"  element={<SyllabusPage appState={appState}/>}/>
               <Route path="/progress"  element={<ProgressPage appState={appState}/>}/>
-              <Route path="/timer"     element={<TimerPage appState={appState}/>}/>
+              <Route path="/timer"     element={<TimerPage timer={timer}/>}/>
               <Route path="/ranking"   element={<RankingPage appState={appState}/>}/>
             </Routes>
           </main>
@@ -143,6 +159,7 @@ export default function App() {
           activeTheme={activeTheme} setActiveTheme={setActiveTheme}
           bgImage={bgImage} setBgImage={setBgImage}
           bgDimness={bgDimness} setBgDimness={setBgDimness}
+          glassOpacity={glassOpacity} setGlassOpacity={setGlassOpacity}
           isLoggedIn={isLoggedIn} isSyncing={isSyncing} onLogin={loginWithGoogle} onLogout={logout}
           onExport={handleExport} onImport={handleImport}
           notifPermission={notifPermission} onRequestNotif={requestNotifPermission}
@@ -152,14 +169,19 @@ export default function App() {
   );
 }
 
-// Small helper so the header title updates per-route without lifting router state up
-function RouteAwareHeader(props) {
-  const [title, setTitle] = useState('Today');
-  useEffect(() => {
-    const update = () => setTitle(PAGE_TITLES[window.location.hash.replace('#','') || '/'] || 'JEE Tracker');
-    update();
-    window.addEventListener('hashchange', update);
-    return () => window.removeEventListener('hashchange', update);
-  }, []);
-  return <Header title={title} {...props}/>;
+// Small helper so the header title updates per-route without lifting router state up.
+// Also renders the DynamicIsland timer pill inline with the header (Fix #7) and
+// wires the profile chip to navigate to the ranking page (Fix #9a).
+function RouteAwareHeader({ timer, ...headerProps }) {
+  const navigate = useNavigate();
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:8, position:'sticky', top:0, zIndex:41 }}>
+      <div style={{ flex:1, minWidth:0 }}>
+        <Header {...headerProps} onProfileClick={() => navigate('/ranking')}/>
+      </div>
+      <div style={{ position:'fixed', top:'calc(env(safe-area-inset-top, 0px) + 8px)', right:12, zIndex:45 }}>
+        <DynamicIsland timer={timer} themeHex={headerProps.themeHex}/>
+      </div>
+    </div>
+  );
 }

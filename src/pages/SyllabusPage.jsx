@@ -126,20 +126,19 @@ export default function SyllabusPage({ appState }) {
       {/* Table header */}
       <div style={{ margin:'0 16px', borderRadius:'16px 16px 0 0', background:'rgba(255,255,255,0.04)',
         border:'1px solid rgba(255,255,255,0.06)', borderBottom:'none',
-        display:'grid', padding:'10px 14px',
-        gridTemplateColumns:`30px 1fr ${mats.map(()=>'52px').join(' ')} 80px`,
-        gap:6 }}>
-        <span style={{ fontSize:9, fontWeight:700, color:'#475569', textTransform:'uppercase' }}>#</span>
+        display:'grid', padding:'10px 12px',
+        gridTemplateColumns:`1fr ${mats.map(()=>'34px').join(' ')} 62px`,
+        gap:4, alignItems:'center' }}>
         <span style={{ fontSize:9, fontWeight:700, color:'#475569', textTransform:'uppercase' }}>Chapter</span>
         {mats.map((mat,i) => (
-          <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:3 }}>
-            <span style={{ fontSize:9, fontWeight:700, color:'#475569', textTransform:'uppercase', textAlign:'center' }}>{mat}</span>
+          <div key={i} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+            <span style={{ fontSize:8, fontWeight:700, color:'#475569', textTransform:'uppercase', textAlign:'center', lineHeight:1.1 }}>{mat}</span>
             {editMode && <button onClick={() => removeMaterial(mat)} style={{ background:'none', border:'none', padding:0, cursor:'pointer' }}>
-              <span style={{ fontSize:10, color:'#ef4444' }}>×</span>
+              <span style={{ fontSize:9, color:'#ef4444' }}>×</span>
             </button>}
           </div>
         ))}
-        <span style={{ fontSize:9, fontWeight:700, color:'#475569', textTransform:'uppercase', textAlign:'center' }}>Priority</span>
+        <span style={{ fontSize:8, fontWeight:700, color:'#475569', textTransform:'uppercase', textAlign:'center' }}>Priority</span>
       </div>
 
       {/* Rows */}
@@ -155,18 +154,19 @@ export default function SyllabusPage({ appState }) {
               onDragOver={e => e.preventDefault()}
               onDrop={e => handleDrop(e, ch.id)}
               style={{
-                display:'grid', gridTemplateColumns:`30px 1fr ${mats.map(()=>'52px').join(' ')} 80px`,
-                gap:6, padding:'10px 14px', alignItems:'center',
+                display:'grid', gridTemplateColumns:`1fr ${mats.map(()=>'34px').join(' ')} 62px`,
+                gap:4, padding:'10px 12px', alignItems:'center',
                 borderBottom:'1px solid rgba(255,255,255,0.04)', background:rowBg,
                 opacity: allDone ? 0.4 : 1,
               }}>
-              <div style={{ display:'flex', justifyContent:'center' }}>
-                {editMode ? <GripVertical size={12} color="#64748b" style={{ cursor:'grab' }}/> : <span style={{ fontSize:11, fontWeight:700, color:'#475569' }}>{idx+1}</span>}
-              </div>
-              <div style={{ display:'flex', alignItems:'center', gap:6, minWidth:0 }}>
-                <span style={{ fontSize:13, fontWeight:500, color: allDone?'#475569':'#e2e8f0', textDecoration:allDone?'line-through':'none', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{ch.title}</span>
+              <div style={{ display:'flex', alignItems:'flex-start', gap:6, minWidth:0 }}>
+                {editMode && <GripVertical size={12} color="#64748b" style={{ cursor:'grab', flexShrink:0, marginTop:2 }}/>}
+                <span style={{ fontSize:12.5, fontWeight:500, lineHeight:1.35, color: allDone?'#475569':'#e2e8f0',
+                  textDecoration:allDone?'line-through':'none', wordBreak:'break-word' }}>
+                  {ch.title}
+                </span>
                 {editMode && (
-                  <div style={{ display:'flex', gap:4, flexShrink:0 }}>
+                  <div style={{ display:'flex', gap:4, flexShrink:0, marginTop:1 }}>
                     <button onClick={() => renameChapter(ch.id,ch.title)} style={{ background:'none', border:'none', padding:2 }}><Pencil size={11} color="#64748b"/></button>
                     <button onClick={() => deleteChapter(ch.id)} style={{ background:'none', border:'none', padding:2 }}><Trash2 size={11} color="#ef4444"/></button>
                   </div>
@@ -177,7 +177,7 @@ export default function SyllabusPage({ appState }) {
                 return (
                   <div key={mi} style={{ display:'flex', justifyContent:'center' }}>
                     <button onClick={() => toggleCheck(ch.id,mat,mi)} style={{ background:'none', border:'none', padding:4, cursor:'pointer', minHeight:0 }}>
-                      {done ? <CheckSquare size={18} color={color}/> : <Square size={18} color="#334155"/>}
+                      {done ? <CheckSquare size={16} color={color}/> : <Square size={16} color="#334155"/>}
                     </button>
                   </div>
                 );

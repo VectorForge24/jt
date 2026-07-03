@@ -1,7 +1,10 @@
 import { useState, useMemo } from 'react';
-import { Plus, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import DailyTaskList from '../components/DailyTaskList.jsx';
 import TaskEditorSheet from '../components/TaskEditorSheet.jsx';
+import MonthlyChapterSheet from '../components/MonthlyChapterSheet.jsx';
+import MockTestSheet from '../components/MockTestSheet.jsx';
+import FabMenu from '../components/FabMenu.jsx';
 import Heatmap from '../components/Heatmap.jsx';
 import XPBar from '../components/XPBar.jsx';
 import RankBadge from '../components/RankBadge.jsx';
@@ -12,11 +15,14 @@ function extractDate(iso) { return iso?.includes('T') ? iso.split('T')[0] : iso;
 function getHrs(e) { try { return (new Date(e.end) - new Date(e.start)) / 3_600_000; } catch { return 0; } }
 
 export default function HomePage({ appState }) {
-  const { events, setEvents, chapters, rank, subXP, rankingState, todayResult, userPosition } = appState;
+  const { events, setEvents, chapters, setChapters, syllabus, mocks, setMocks, rank, subXP, rankingState, todayResult, userPosition } = appState;
 
   const [viewDate, setViewDate] = useState(new Date());
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [chapterSheetOpen, setChapterSheetOpen] = useState(false);
+  const [mockSheetOpen, setMockSheetOpen] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
 
   const viewDateStr = fmtYMD(viewDate);
   const todayStr    = fmtYMD(new Date());
@@ -66,6 +72,15 @@ export default function HomePage({ appState }) {
   const handleDayTap = (ds) => {
     setViewDate(new Date(ds + 'T12:00:00'));
   };
+
+  // Fix #10: single FAB dispatches to whichever sheet the user picked
+  const handleFabAction = (actionId) => {
+    if (actionId === 'task') openNewTask();
+    else if (actionId === 'chapter') setChapterSheetOpen(true);
+    else if (actionId === 'mock') setMockSheetOpen(true);
+  };
+
+  const handleSaveMock = (mockData) => setMocks(prev => [...(prev || []), mockData]);
 
   // Ring calculation
   const ringR = 22, ringCirc = 2 * Math.PI * ringR;
@@ -163,24 +178,15 @@ export default function HomePage({ appState }) {
           <h2 style={{ fontSize:14, fontWeight:700, color:'#94a3b8', margin:0, textTransform:'uppercase', letterSpacing:'0.06em' }}>
             {isToday ? "Today's Tasks" : 'Tasks'}
           </h2>
-          <button onClick={openNewTask}
-            style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:12, fontSize:12, fontWeight:700, color:'#fff', background:rank.color, border:'none' }}>
-            <Plus size={14}/> Add
-          </button>
         </div>
 
         <DailyTaskList tasks={viewTasks} onToggle={handleToggle} onEdit={openEdit} emptyAction={openNewTask}/>
       </div>
 
-      {/* ── Floating add button (larger tap target) ────────────────────────── */}
-      <button onClick={openNewTask}
-        style={{ position:'fixed', bottom:96, right:20, width:52, height:52, borderRadius:'50%',
-          background:rank.color, border:'none', display:'flex', alignItems:'center', justifyContent:'center',
-          boxShadow:`0 4px 20px ${rank.glow}55`, zIndex:30 }}>
-        <Plus size={24} color="#fff"/>
-      </button>
+      {/* ── Fix #10: single FAB expanding into Task / Chapter / Mock options ── */}
+      <FabMenu open={fabOpen} setOpen={setFabOpen} onAction={handleFabAction} themeColor={rank.color} themeGlow={rank.glow}/>
 
-      {/* ── Task editor sheet ─────────────────────────────────────────────── */}
+      {/* ── Sheets ────────────────────────────────────────────────────────── */}
       <TaskEditorSheet
         isOpen={editorOpen}
         onClose={() => setEditorOpen(false)}
@@ -189,6 +195,22 @@ export default function HomePage({ appState }) {
         existingTask={editingTask}
         defaultDate={viewDateStr}
         chapters={chapters}
+      />
+
+      <MonthlyChapterSheet
+        isOpen={chapterSheetOpen}
+        onClose={() => setChapterSheetOpen(false)}
+        syllabus={syllabus}
+        chapters={chapters}
+        setChapters={setChapters}
+        targetDate={viewDate}
+      />
+
+      <MockTestSheet
+        isOpen={mockSheetOpen}
+        onClose={() => setMockSheetOpen(false)}
+        onSave={handleSaveMock}
+        defaultDate={viewDateStr}
       />
     </div>
   );
