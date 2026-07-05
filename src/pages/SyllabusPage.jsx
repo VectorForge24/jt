@@ -123,27 +123,34 @@ export default function SyllabusPage({ appState }) {
         </div>
       </div>
 
-      {/* Table header */}
-      <div style={{ margin:'0 16px', borderRadius:'16px 16px 0 0', background:'rgba(255,255,255,0.04)',
-        border:'1px solid rgba(255,255,255,0.06)', borderBottom:'none',
-        display:'grid', padding:'10px 12px',
-        gridTemplateColumns:`1fr ${mats.map(()=>'34px').join(' ')} 62px`,
-        gap:4, alignItems:'center' }}>
-        <span style={{ fontSize:9, fontWeight:700, color:'#475569', textTransform:'uppercase' }}>Chapter</span>
-        {mats.map((mat,i) => (
-          <div key={i} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
-            <span style={{ fontSize:8, fontWeight:700, color:'#475569', textTransform:'uppercase', textAlign:'center', lineHeight:1.1 }}>{mat}</span>
-            {editMode && <button onClick={() => removeMaterial(mat)} style={{ background:'none', border:'none', padding:0, cursor:'pointer' }}>
-              <span style={{ fontSize:9, color:'#ef4444' }}>×</span>
-            </button>}
-          </div>
-        ))}
-        <span style={{ fontSize:8, fontWeight:700, color:'#475569', textTransform:'uppercase', textAlign:'center' }}>Priority</span>
-      </div>
+      {/* Table — wrapped in its own scroll container: horizontal scroll for
+          narrow screens with many material columns, vertical scroll with a
+          capped height + sticky header so a long chapter list (e.g. 28
+          chapters for Maths) doesn't just grow the whole page indefinitely. */}
+      <div style={{ margin:'0 16px 16px', border:'1px solid rgba(255,255,255,0.06)', borderRadius:16,
+        overflowX:'auto', overflowY:'auto', maxHeight:'60vh' }} className="hide-scrollbar">
+        <div style={{ minWidth:280 + mats.length*34 }}>
 
-      {/* Rows */}
-      <div style={{ margin:'0 16px', border:'1px solid rgba(255,255,255,0.06)', borderRadius:'0 0 16px 16px', overflow:'hidden', marginBottom:16 }}>
-        {chapters.map((ch, idx) => {
+          {/* Table header — sticky within the scroll container */}
+          <div style={{ position:'sticky', top:0, zIndex:5, borderRadius:'16px 16px 0 0', background:'#0f172a',
+            borderBottom:'1px solid rgba(255,255,255,0.06)',
+            display:'grid', padding:'10px 12px',
+            gridTemplateColumns:`1fr ${mats.map(()=>'34px').join(' ')} 62px`,
+            gap:4, alignItems:'center' }}>
+            <span style={{ fontSize:9, fontWeight:700, color:'#475569', textTransform:'uppercase' }}>Chapter</span>
+            {mats.map((mat,i) => (
+              <div key={i} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+                <span style={{ fontSize:8, fontWeight:700, color:'#475569', textTransform:'uppercase', textAlign:'center', lineHeight:1.1 }}>{mat}</span>
+                {editMode && <button onClick={() => removeMaterial(mat)} style={{ background:'none', border:'none', padding:0, cursor:'pointer' }}>
+                  <span style={{ fontSize:9, color:'#ef4444' }}>×</span>
+                </button>}
+              </div>
+            ))}
+            <span style={{ fontSize:8, fontWeight:700, color:'#475569', textTransform:'uppercase', textAlign:'center' }}>Priority</span>
+          </div>
+
+          {/* Rows */}
+          {chapters.map((ch, idx) => {
           const allDone = mats.length>0 && mats.every(mat => ch.progress?.[mat]);
           const ps = prioStyle(ch.priority||'None');
           const rowBg = ch.priority==='High'?'rgba(239,68,68,0.04)':ch.priority==='Medium'?'rgba(245,158,11,0.04)':ch.priority==='Low'?'rgba(74,222,128,0.04)':'transparent';
@@ -207,6 +214,7 @@ export default function SyllabusPage({ appState }) {
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );

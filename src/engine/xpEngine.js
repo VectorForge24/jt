@@ -225,6 +225,15 @@ export function buildRankingState(events, savedState) {
   // a PRIOR month, start this month's rank fresh at Bronze III/0 XP, but
   // keep lifetime achievements and the full history log intact for the
   // profile view — only totalXP/rankIdx/subXP/rank reset, not everything.
+  // Track whether the monthly reset actually fired — this must force a
+  // persist even if there are zero new dates to process (e.g. it's a new
+  // month and the user hasn't logged any tasks yet). Without this, the
+  // reset happens correctly in memory for one render but is never written
+  // to localStorage/Firestore, so the OLD (pre-reset) state gets read back
+  // on the very next load — silently undoing the reset every time, until
+  // the user happens to create a task that day and changed becomes true
+  // for an unrelated reason.
+  let monthResetFired = false;
   if (savedState && savedState.history?.length) {
     const lastEntryMonth = savedState.history[savedState.history.length - 1].date?.slice(0,7);
     if (lastEntryMonth && lastEntryMonth !== currentMonthKey) {
@@ -234,6 +243,7 @@ export function buildRankingState(events, savedState) {
         history: savedState.history,                  // keep the log for past-month stats
         _monthResetAt: today,
       };
+      monthResetFired = true;
     }
   }
 
@@ -268,5 +278,5 @@ export function buildRankingState(events, savedState) {
     }
   }
 
-  return { state: currentState, todayResult: latestResult, animEvents, changed: datesToRun.length > 0 };
+  return { state: currentState, todayResult: latestResult, animEvents, changed: datesToRun.length > 0 || monthResetFired };
 }

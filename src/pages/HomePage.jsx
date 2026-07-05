@@ -10,6 +10,11 @@ import XPBar from '../components/XPBar.jsx';
 import RankBadge from '../components/RankBadge.jsx';
 import { XP_PER_SUBRANK } from '../engine/xpEngine.js';
 
+// Note: this page is the single-day agenda view (Today's Tasks + rank +
+// heatmap + FAB). Month/Week grid views now live in the dedicated Calendar
+// page (CalendarPage.jsx, ported from the original tracker's FullCalendar
+// implementation) rather than being duplicated here.
+
 function fmtYMD(d) { const dt = new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
 function extractDate(iso) { return iso?.includes('T') ? iso.split('T')[0] : iso; }
 function getHrs(e) { try { return (new Date(e.end) - new Date(e.start)) / 3_600_000; } catch { return 0; } }
@@ -172,14 +177,13 @@ export default function HomePage({ appState }) {
         <Heatmap events={events} weeks={10} onDayTap={handleDayTap} rankColor={rank.color}/>
       </div>
 
-      {/* ── Task list ─────────────────────────────────────────────────────── */}
+      {/* ── Today's Tasks ─────────────────────────────────────────────────── */}
       <div style={{ padding:'0 16px' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
           <h2 style={{ fontSize:14, fontWeight:700, color:'#94a3b8', margin:0, textTransform:'uppercase', letterSpacing:'0.06em' }}>
             {isToday ? "Today's Tasks" : 'Tasks'}
           </h2>
         </div>
-
         <DailyTaskList tasks={viewTasks} onToggle={handleToggle} onEdit={openEdit} emptyAction={openNewTask}/>
       </div>
 

@@ -13,6 +13,7 @@ import RankAnimation, { BonusToast } from './components/RankAnimation.jsx';
 import DynamicIsland from './components/DynamicIsland.jsx';
 
 import HomePage from './pages/HomePage.jsx';
+import CalendarPage from './pages/CalendarPage.jsx';
 import SyllabusPage from './pages/SyllabusPage.jsx';
 import ProgressPage from './pages/ProgressPage.jsx';
 import TimerPage from './pages/TimerPage.jsx';
@@ -144,8 +145,19 @@ export default function App() {
           <main>
             <Routes>
               <Route path="/"          element={<HomePage appState={appState}/>}/>
+              <Route path="/calendar"  element={<CalendarPage
+                                                    themeToggle={null} timerIsland={null} syncTrigger={null}
+                                                    events={appState.events} setEvents={appState.setEvents}
+                                                    chapters={appState.chapters} setChapters={appState.setChapters}
+                                                    syllabus={appState.syllabus} setSyllabus={appState.setSyllabus}
+                                                    mocks={appState.mocks} setMocks={appState.setMocks}
+                                                    materials={appState.materials}
+                                                  />}/>
               <Route path="/syllabus"  element={<SyllabusPage appState={appState}/>}/>
-              <Route path="/progress"  element={<ProgressPage appState={appState}/>}/>
+              <Route path="/progress"  element={<ProgressPage
+                                                    themeToggle={null} timerIsland={null}
+                                                    events={appState.events} mocks={appState.mocks}
+                                                  />}/>
               <Route path="/timer"     element={<TimerPage timer={timer}/>}/>
               <Route path="/ranking"   element={<RankingPage appState={appState}/>}/>
             </Routes>
@@ -179,7 +191,7 @@ function RouteAwareHeader({ timer, ...headerProps }) {
       <div style={{ flex:1, minWidth:0 }}>
         <Header {...headerProps} onProfileClick={() => navigate('/ranking')}/>
       </div>
-      <div style={{ position:'fixed', top:'calc(env(safe-area-inset-top, 0px) + 8px)', right:12, zIndex:45 }}>
+      <div style={{ position:'fixed', top:'calc(env(safe-area-inset-top, 0px) + 8px)', left:'50%', transform:'translateX(-50%)', zIndex:45 }}>
         <DynamicIsland timer={timer} themeHex={headerProps.themeHex}/>
       </div>
     </div>
